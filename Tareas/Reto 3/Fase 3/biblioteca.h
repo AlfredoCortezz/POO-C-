@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <algorithm>
+#include <limits>
 
 using namespace std;
 
@@ -19,7 +20,7 @@ struct Libro {
     int id;
     string titulo;
     string isbn;
-    int ano;
+    int anio;
     int id_autor;
 };
 
@@ -45,21 +46,34 @@ private:
     vector<Estudiante> estudiantes;
     vector<Prestamo> prestamos;
 
-    // Métodos auxiliares para validaciones
+    // Métodos auxiliares
     bool autorExiste(int id);
     bool libroExiste(int id);
     bool estudianteExiste(int id);
     bool prestamoExiste(int id);
     bool libroDisponible(int id_libro);
     bool validarFecha(const string& fecha);
+    bool esBisiesto(int anio);
+    bool fechaEsValida(int anio, int mes, int dia);
     
-    // Métodos para cargar datos desde archivos
+    // Generación automática de IDs
+    int generarIdAutor();
+    int generarIdLibro();
+    int generarIdEstudiante();
+    int generarIdPrestamo();
+    
+    // Validación de entrada
+    int leerEntero(const string& mensaje);
+    string leerCadena(const string& mensaje);
+    void pausar();
+    bool confirmarAccion(const string& mensaje);
+    
+    // Carga y guardado
+    void crearArchivosPredeterminados();
     void cargarAutores();
     void cargarLibros();
     void cargarEstudiantes();
     void cargarPrestamos();
-    
-    // Métodos para guardar datos en archivos
     void guardarAutores();
     void guardarLibros();
     void guardarEstudiantes();

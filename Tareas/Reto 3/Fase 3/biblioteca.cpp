@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <sstream>
 #include <regex>
+#include <limits>
+#include <cctype>
 
 using namespace std;
 
@@ -44,69 +46,125 @@ private:
     vector<Estudiante> estudiantes;
     vector<Prestamo> prestamos;
 
-    // Verifica si un autor existe por su ID
     bool autorExiste(int id) {
-        for (const auto& autor : autores) {
-            if (autor.id == id) return true;
-        }
-        return false;
+        return any_of(autores.begin(), autores.end(), [id](const Autor& a) { return a.id == id; });
     }
 
-    // Verifica si un libro existe por su ID
     bool libroExiste(int id) {
-        for (const auto& libro : libros) {
-            if (libro.id == id) return true;
-        }
-        return false;
+        return any_of(libros.begin(), libros.end(), [id](const Libro& l) { return l.id == id; });
     }
 
-    // Verifica si un estudiante existe por su ID
     bool estudianteExiste(int id) {
-        for (const auto& estudiante : estudiantes) {
-            if (estudiante.id == id) return true;
-        }
-        return false;
+        return any_of(estudiantes.begin(), estudiantes.end(), [id](const Estudiante& e) { return e.id == id; });
     }
 
-    // Verifica si un prestamo existe por su ID
     bool prestamoExiste(int id) {
-        for (const auto& prestamo : prestamos) {
-            if (prestamo.id == id) return true;
-        }
-        return false;
+        return any_of(prestamos.begin(), prestamos.end(), [id](const Prestamo& p) { return p.id == id; });
     }
 
-    // Verifica si un libro esta disponible (no prestado)
     bool libroDisponible(int id_libro) {
-        for (const auto& prestamo : prestamos) {
-            if (prestamo.id_libro == id_libro && prestamo.activo) {
-                return false;
-            }
-        }
-        return true;
+        return none_of(prestamos.begin(), prestamos.end(), 
+                      [id_libro](const Prestamo& p) { return p.id_libro == id_libro && p.activo; });
     }
 
-    // Valida el formato de fecha (YYYY-MM-DD)
+    bool esBisiesto(int anio) {
+        return (anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0);
+    }
+
+    bool fechaEsValida(int anio, int mes, int dia) {
+        if (mes < 1 || mes > 12 || dia < 1) return false;
+        
+        int diasEnMes[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        if (mes == 2 && esBisiesto(anio)) diasEnMes[1] = 29;
+        
+        return dia <= diasEnMes[mes - 1];
+    }
+
     bool validarFecha(const string& fecha) {
-        regex fechaRegex("\\d{4}-\\d{2}-\\d{2}");
+        regex fechaRegex("^\\d{4}-\\d{2}-\\d{2}$");
         if (!regex_match(fecha, fechaRegex)) return false;
-        // Validacion adicional para anio, mes y dia
+        
         try {
             int anio = stoi(fecha.substr(0, 4));
             int mes = stoi(fecha.substr(5, 2));
             int dia = stoi(fecha.substr(8, 2));
-            if (anio < 1900 || anio > 2025 || mes < 1 || mes > 12 || dia < 1 || dia > 31) {
-                return false;
-            }
-            return true;
+            
+            if (anio < 1900 || anio > 2100) return false;
+            return fechaEsValida(anio, mes, dia);
         } catch (const exception& e) {
             return false;
         }
     }
 
-    // Crea archivos predeterminados si no existen
+    int generarIdAutor() {
+        if (autores.empty()) return 1;
+        return max_element(autores.begin(), autores.end(), 
+                         [](const Autor& a, const Autor& b) { return a.id < b.id; })->id + 1;
+    }
+
+    int generarIdLibro() {
+        if (libros.empty()) return 1;
+        return max_element(libros.begin(), libros.end(), 
+                         [](const Libro& a, const Libro& b) { return a.id < b.id; })->id + 1;
+    }
+
+    int generarIdEstudiante() {
+        if (estudiantes.empty()) return 101;
+        return max_element(estudiantes.begin(), estudiantes.end(), 
+                         [](const Estudiante& a, const Estudiante& b) { return a.id < b.id; })->id + 1;
+    }
+
+    int generarIdPrestamo() {
+        if (prestamos.empty()) return 1001;
+        return max_element(prestamos.begin(), prestamos.end(), 
+                         [](const Prestamo& a, const Prestamo& b) { return a.id < b.id; })->id + 1;
+    }
+
+    int leerEntero(const string& mensaje) {
+        int valor;
+        while (true) {
+            cout << mensaje;
+            cin >> valor;
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Error: Entrada invalida. Por favor ingrese un numero entero." << endl;
+            } else {
+                cin.ignore();
+                return valor;
+            }
+        }
+    }
+
+    string leerCadena(const string& mensaje) {
+        string valor;
+        cout << mensaje;
+        getline(cin, valor);
+        
+        if (!valor.empty()) {
+            valor[0] = toupper(valor[0]);
+            for (size_t i = 1; i < valor.length(); i++) {
+                if (valor[i-1] == ' ') valor[i] = toupper(valor[i]);
+                else valor[i] = tolower(valor[i]);
+            }
+        }
+        return valor;
+    }
+
+    void pausar() {
+        cout << "\nPresione Enter para continuar...";
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
+
+    bool confirmarAccion(const string& mensaje) {
+        cout << mensaje << " (s/n): ";
+        char respuesta;
+        cin >> respuesta;
+        cin.ignore();
+        return tolower(respuesta) == 's';
+    }
+
     void crearArchivosPredeterminados() {
-        // Verificar y crear autores.txt si no existe
         ifstream archivoAutores("autores.txt");
         if (!archivoAutores.is_open()) {
             ofstream nuevoArchivo("autores.txt");
@@ -123,7 +181,6 @@ private:
         }
         archivoAutores.close();
 
-        // Verificar y crear libros.txt si no existe
         ifstream archivoLibros("libros.txt");
         if (!archivoLibros.is_open()) {
             ofstream nuevoArchivo("libros.txt");
@@ -142,7 +199,6 @@ private:
         }
         archivoLibros.close();
 
-        // Verificar y crear estudiantes.txt si no existe
         ifstream archivoEstudiantes("estudiantes.txt");
         if (!archivoEstudiantes.is_open()) {
             ofstream nuevoArchivo("estudiantes.txt");
@@ -159,7 +215,6 @@ private:
         }
         archivoEstudiantes.close();
 
-        // Verificar y crear prestamos.txt si no existe
         ifstream archivoPrestamos("prestamos.txt");
         if (!archivoPrestamos.is_open()) {
             ofstream nuevoArchivo("prestamos.txt");
@@ -174,7 +229,6 @@ private:
         archivoPrestamos.close();
     }
 
-    // Carga los autores desde el archivo autores.txt
     void cargarAutores() {
         ifstream archivo("autores.txt");
         if (!archivo.is_open()) {
@@ -183,9 +237,8 @@ private:
         }
         
         string linea;
-        int contador = 0;
         while (getline(archivo, linea)) {
-            if (linea.empty() || linea.find_first_not_of(' ') == string::npos) continue;
+            if (linea.empty()) continue;
             
             stringstream ss(linea);
             string token;
@@ -202,17 +255,14 @@ private:
                     autor.nombre = tokens[1];
                     autor.nacionalidad = tokens[2];
                     autores.push_back(autor);
-                    contador++;
                 } catch (const exception& e) {
                     cout << "Error en linea de autores: " << linea << endl;
                 }
             }
         }
         archivo.close();
-        cout << "Cargados " << contador << " autores" << endl;
     }
 
-    // Carga los libros desde el archivo libros.txt
     void cargarLibros() {
         ifstream archivo("libros.txt");
         if (!archivo.is_open()) {
@@ -221,9 +271,8 @@ private:
         }
         
         string linea;
-        int contador = 0;
         while (getline(archivo, linea)) {
-            if (linea.empty() || linea.find_first_not_of(' ') == string::npos) continue;
+            if (linea.empty()) continue;
             
             stringstream ss(linea);
             string token;
@@ -242,17 +291,14 @@ private:
                     libro.anio = stoi(tokens[3]);
                     libro.id_autor = stoi(tokens[4]);
                     libros.push_back(libro);
-                    contador++;
                 } catch (const exception& e) {
                     cout << "Error en linea de libros: " << linea << endl;
                 }
             }
         }
         archivo.close();
-        cout << "Cargados " << contador << " libros" << endl;
     }
 
-    // Carga los estudiantes desde el archivo estudiantes.txt
     void cargarEstudiantes() {
         ifstream archivo("estudiantes.txt");
         if (!archivo.is_open()) {
@@ -261,9 +307,8 @@ private:
         }
         
         string linea;
-        int contador = 0;
         while (getline(archivo, linea)) {
-            if (linea.empty() || linea.find_first_not_of(' ') == string::npos) continue;
+            if (linea.empty()) continue;
             
             stringstream ss(linea);
             string token;
@@ -280,17 +325,14 @@ private:
                     estudiante.nombre = tokens[1];
                     estudiante.grado = stoi(tokens[2]);
                     estudiantes.push_back(estudiante);
-                    contador++;
                 } catch (const exception& e) {
                     cout << "Error en linea de estudiantes: " << linea << endl;
                 }
             }
         }
         archivo.close();
-        cout << "Cargados " << contador << " estudiantes" << endl;
     }
 
-    // Carga los prestamos desde el archivo prestamos.txt
     void cargarPrestamos() {
         ifstream archivo("prestamos.txt");
         if (!archivo.is_open()) {
@@ -299,9 +341,8 @@ private:
         }
         
         string linea;
-        int contador = 0;
         while (getline(archivo, linea)) {
-            if (linea.empty() || linea.find_first_not_of(' ') == string::npos) continue;
+            if (linea.empty()) continue;
             
             stringstream ss(linea);
             string token;
@@ -321,17 +362,14 @@ private:
                     prestamo.id_estudiante = stoi(tokens[4]);
                     prestamo.activo = (tokens[5] == "1");
                     prestamos.push_back(prestamo);
-                    contador++;
                 } catch (const exception& e) {
                     cout << "Error en linea de prestamos: " << linea << endl;
                 }
             }
         }
         archivo.close();
-        cout << "Cargados " << contador << " prestamos" << endl;
     }
 
-    // Guarda los autores en el archivo autores.txt
     void guardarAutores() {
         ofstream archivo("autores.txt");
         if (!archivo.is_open()) {
@@ -344,7 +382,6 @@ private:
         archivo.close();
     }
 
-    // Guarda los libros en el archivo libros.txt
     void guardarLibros() {
         ofstream archivo("libros.txt");
         if (!archivo.is_open()) {
@@ -358,7 +395,6 @@ private:
         archivo.close();
     }
 
-    // Guarda los estudiantes en el archivo estudiantes.txt
     void guardarEstudiantes() {
         ofstream archivo("estudiantes.txt");
         if (!archivo.is_open()) {
@@ -371,7 +407,6 @@ private:
         archivo.close();
     }
 
-    // Guarda los prestamos en el archivo prestamos.txt
     void guardarPrestamos() {
         ofstream archivo("prestamos.txt");
         if (!archivo.is_open()) {
@@ -386,7 +421,6 @@ private:
     }
 
 public:
-    // Constructor que inicializa la base de datos cargando los datos
     BibliotecaDB() {
         crearArchivosPredeterminados();
         cargarAutores();
@@ -396,492 +430,483 @@ public:
         cout << "Sistema de biblioteca iniciado correctamente" << endl;
     }
     
-    // Agrega un nuevo autor al sistema
     void agregarAutor() {
+        cout << "\n===== AGREGAR AUTOR =====" << endl;
+        
         Autor autor;
-        cout << "\n=== AGREGAR AUTOR ===" << endl;
-        
-        cout << "ID: ";
-        cin >> autor.id;
-        
-        if (autorExiste(autor.id)) {
-            cout << "Error: Ya existe un autor con ese ID." << endl;
-            return;
-        }
-        
-        cin.ignore();
-        cout << "Nombre: ";
-        getline(cin, autor.nombre);
-        
-        cout << "Nacionalidad: ";
-        getline(cin, autor.nacionalidad);
+        autor.id = generarIdAutor();
+        autor.nombre = leerCadena("Nombre: ");
+        autor.nacionalidad = leerCadena("Nacionalidad: ");
         
         autores.push_back(autor);
         guardarAutores();
-        cout << "Autor agregado correctamente" << endl;
+        cout << "Autor agregado correctamente (ID: " << autor.id << ")" << endl;
+        pausar();
     }
 
-    // Lista todos los autores registrados
     void listarAutores() {
-        cout << "\n=== LISTA DE AUTORES ===" << endl;
+        cout << "\n===== LISTA DE AUTORES =====" << endl;
         if (autores.empty()) {
             cout << "No hay autores registrados" << endl;
+            pausar();
             return;
         }
         
+        printf("%-4s %-30s %-20s\n", "ID", "NOMBRE", "NACIONALIDAD");
+        cout << string(60, '=') << endl;
+        
         for (const auto& autor : autores) {
-            cout << "ID: " << autor.id << " | Nombre: " << autor.nombre 
-                 << " | Nacionalidad: " << autor.nacionalidad << endl;
+            printf("%-4d %-30s %-20s\n", autor.id, autor.nombre.c_str(), autor.nacionalidad.c_str());
         }
+        cout << "\nTotal: " << autores.size() << " autores" << endl;
+        pausar();
     }
 
-    // Busca un autor por su ID
     void buscarAutorPorId() {
-        int id;
-        cout << "\n=== BUSCAR AUTOR POR ID ===" << endl;
-        cout << "ID del autor: ";
-        cin >> id;
+        cout << "\n===== BUSCAR AUTOR POR ID =====" << endl;
+        int id = leerEntero("Ingrese ID del autor: ");
         
-        for (const auto& autor : autores) {
-            if (autor.id == id) {
-                cout << "Autor encontrado:" << endl;
-                cout << "ID: " << autor.id << " | Nombre: " << autor.nombre 
-                     << " | Nacionalidad: " << autor.nacionalidad << endl;
-                return;
-            }
+        auto it = find_if(autores.begin(), autores.end(), [id](const Autor& a) { return a.id == id; });
+        if (it != autores.end()) {
+            cout << "\nAutor encontrado:" << endl;
+            cout << "ID: " << it->id << endl;
+            cout << "Nombre: " << it->nombre << endl;
+            cout << "Nacionalidad: " << it->nacionalidad << endl;
+        } else {
+            cout << "No se encontro autor con ID " << id << endl;
         }
-        cout << "No se encontro autor con ese ID" << endl;
+        pausar();
     }
 
-    // Actualiza los datos de un autor existente
     void actualizarAutor() {
-        int id;
-        cout << "\n=== ACTUALIZAR AUTOR ===" << endl;
-        cout << "ID del autor: ";
-        cin >> id;
+        cout << "\n===== ACTUALIZAR AUTOR =====" << endl;
+        int id = leerEntero("ID del autor a actualizar: ");
         
-        for (auto& autor : autores) {
-            if (autor.id == id) {
-                cin.ignore();
-                cout << "Nuevo nombre (anterior: " << autor.nombre << "): ";
-                getline(cin, autor.nombre);
-                cout << "Nueva nacionalidad (anterior: " << autor.nacionalidad << "): ";
-                getline(cin, autor.nacionalidad);
-                guardarAutores();
-                cout << "Autor actualizado correctamente" << endl;
-                return;
-            }
+        auto it = find_if(autores.begin(), autores.end(), [id](const Autor& a) { return a.id == id; });
+        if (it != autores.end()) {
+            cout << "\nAutor actual: " << it->nombre << " (" << it->nacionalidad << ")" << endl;
+            
+            it->nombre = leerCadena("Nuevo nombre: ");
+            it->nacionalidad = leerCadena("Nueva nacionalidad: ");
+            
+            guardarAutores();
+            cout << "Autor actualizado correctamente" << endl;
+        } else {
+            cout << "No se encontro autor con ID " << id << endl;
         }
-        cout << "No se encontro autor con ese ID" << endl;
+        pausar();
     }
 
-    // Elimina un autor por su ID
     void eliminarAutor() {
-        int id;
-        cout << "\n=== ELIMINAR AUTOR ===" << endl;
-        cout << "ID del autor a eliminar: ";
-        cin >> id;
+        cout << "\n===== ELIMINAR AUTOR =====" << endl;
+        int id = leerEntero("ID del autor a eliminar: ");
         
-        for (auto it = autores.begin(); it != autores.end(); ++it) {
-            if (it->id == id) {
-                // Verificar si el autor esta asociado a algun libro
-                for (const auto& libro : libros) {
-                    if (libro.id_autor == id) {
-                        cout << "Error: El autor esta asociado a uno o mas libros" << endl;
-                        return;
-                    }
-                }
+        auto it = find_if(autores.begin(), autores.end(), [id](const Autor& a) { return a.id == id; });
+        if (it != autores.end()) {
+            bool tieneLibros = any_of(libros.begin(), libros.end(), 
+                                    [id](const Libro& l) { return l.id_autor == id; });
+            
+            if (tieneLibros) {
+                cout << "Error: No se puede eliminar. El autor tiene libros asociados." << endl;
+            } else if (confirmarAccion("Esta seguro de eliminar este autor")) {
                 autores.erase(it);
                 guardarAutores();
-                cout << "Autor eliminado" << endl;
-                return;
+                cout << "Autor eliminado correctamente" << endl;
+            } else {
+                cout << "Eliminacion cancelada" << endl;
             }
+        } else {
+            cout << "No se encontro autor con ID " << id << endl;
         }
-        cout << "No se encontro autor con ese ID" << endl;
+        pausar();
     }
 
-    // Agrega un nuevo libro al sistema
     void agregarLibro() {
+        cout << "\n===== AGREGAR LIBRO =====" << endl;
+        
         Libro libro;
-        cout << "\n=== AGREGAR LIBRO ===" << endl;
-        
-        cout << "ID: ";
-        cin >> libro.id;
-        
-        if (libroExiste(libro.id)) {
-            cout << "Error: Ya existe un libro con ese ID" << endl;
-            return;
-        }
-        
-        cin.ignore();
-        cout << "Titulo: ";
-        getline(cin, libro.titulo);
-        
+        libro.id = generarIdLibro();
+        libro.titulo = leerCadena("Titulo: ");
         cout << "ISBN: ";
         getline(cin, libro.isbn);
+        libro.anio = leerEntero("Anio de publicacion: ");
         
-        cout << "Anio: ";
-        cin >> libro.anio;
+        cout << "\nLista de autores disponibles:" << endl;
+        listarAutores();
         
-        cout << "ID Autor: ";
-        cin >> libro.id_autor;
+        libro.id_autor = leerEntero("ID del autor: ");
         
         if (!autorExiste(libro.id_autor)) {
             cout << "Error: No existe autor con ese ID" << endl;
+            pausar();
             return;
         }
         
         libros.push_back(libro);
         guardarLibros();
-        cout << "Libro agregado correctamente" << endl;
+        cout << "Libro agregado correctamente (ID: " << libro.id << ")" << endl;
+        pausar();
     }
 
-    // Lista todos los libros registrados
     void listarLibros() {
-        cout << "\n=== LISTA DE LIBROS ===" << endl;
+        cout << "\n===== CATALOGO DE LIBROS =====" << endl;
         if (libros.empty()) {
             cout << "No hay libros registrados" << endl;
+            pausar();
             return;
         }
         
+        printf("%-3s %-25s %-15s %-6s %-20s %-12s\n", 
+               "ID", "TITULO", "ISBN", "AÑO", "AUTOR", "DISPONIBLE");
+        cout << string(90, '=') << endl;
+        
         for (const auto& libro : libros) {
             string nombreAutor = "No encontrado";
-            for (const auto& autor : autores) {
-                if (autor.id == libro.id_autor) {
-                    nombreAutor = autor.nombre;
-                    break;
-                }
-            }
+            auto autorIt = find_if(autores.begin(), autores.end(), 
+                                 [&libro](const Autor& a) { return a.id == libro.id_autor; });
+            if (autorIt != autores.end()) nombreAutor = autorIt->nombre;
             
             string disponible = libroDisponible(libro.id) ? "Si" : "No";
             
-            cout << "ID: " << libro.id << " | Titulo: " << libro.titulo 
-                 << " | ISBN: " << libro.isbn << " | Anio: " << libro.anio 
-                 << " | Autor: " << nombreAutor << " | Disponible: " << disponible << endl;
+            printf("%-3d %-25s %-15s %-6d %-20s %-12s\n", 
+                   libro.id, libro.titulo.c_str(), libro.isbn.c_str(), 
+                   libro.anio, nombreAutor.c_str(), disponible.c_str());
         }
+        pausar();
     }
 
-    // Busca libros por titulo (busqueda parcial)
     void buscarLibroPorTitulo() {
-        string titulo;
-        cout << "\n=== BUSCAR LIBRO POR TITULO ===" << endl;
-        cin.ignore();
-        cout << "Titulo a buscar: ";
-        getline(cin, titulo);
+        cout << "\n===== BUSCAR LIBRO POR TITULO =====" << endl;
+        string titulo = leerCadena("Titulo a buscar: ");
         
         bool encontrado = false;
         for (const auto& libro : libros) {
-            if (libro.titulo.find(titulo) != string::npos) {
+            string tituloLower = libro.titulo;
+            transform(tituloLower.begin(), tituloLower.end(), tituloLower.begin(), ::tolower);
+            string busquedaLower = titulo;
+            transform(busquedaLower.begin(), busquedaLower.end(), busquedaLower.begin(), ::tolower);
+            
+            if (tituloLower.find(busquedaLower) != string::npos) {
                 if (!encontrado) {
                     cout << "Libros encontrados:" << endl;
+                    printf("%-3s %-25s %-20s %-12s\n", "ID", "TITULO", "AUTOR", "DISPONIBLE");
+                    cout << string(70, '-') << endl;
                     encontrado = true;
                 }
                 
                 string nombreAutor = "No encontrado";
-                for (const auto& autor : autores) {
-                    if (autor.id == libro.id_autor) {
-                        nombreAutor = autor.nombre;
-                        break;
-                    }
-                }
+                auto autorIt = find_if(autores.begin(), autores.end(), 
+                                     [&libro](const Autor& a) { return a.id == libro.id_autor; });
+                if (autorIt != autores.end()) nombreAutor = autorIt->nombre;
                 
                 string disponible = libroDisponible(libro.id) ? "Si" : "No";
                 
-                cout << "ID: " << libro.id << " | Titulo: " << libro.titulo 
-                     << " | Autor: " << nombreAutor << " | Disponible: " << disponible << endl;
+                printf("%-3d %-25s %-20s %-12s\n", 
+                       libro.id, libro.titulo.c_str(), nombreAutor.c_str(), disponible.c_str());
             }
         }
         
         if (!encontrado) {
-            cout << "No hay libros con ese titulo" << endl;
+            cout << "No se encontraron libros con ese titulo" << endl;
         }
+        pausar();
     }
 
-    // Actualiza los datos de un libro existente
     void actualizarLibro() {
-        int id;
-        cout << "\n=== ACTUALIZAR LIBRO ===" << endl;
-        cout << "ID del libro: ";
-        cin >> id;
+        cout << "\n===== ACTUALIZAR LIBRO =====" << endl;
+        int id = leerEntero("ID del libro: ");
         
-        for (auto& libro : libros) {
-            if (libro.id == id) {
-                cin.ignore();
-                cout << "Nuevo titulo (anterior: " << libro.titulo << "): ";
-                getline(cin, libro.titulo);
-                cout << "Nuevo ISBN (anterior: " << libro.isbn << "): ";
-                getline(cin, libro.isbn);
-                cout << "Nuevo anio (anterior: " << libro.anio << "): ";
-                cin >> libro.anio;
-                cout << "Nuevo ID autor (anterior: " << libro.id_autor << "): ";
-                cin >> libro.id_autor;
-                
-                if (!autorExiste(libro.id_autor)) {
-                    cout << "Error: No existe autor con ese ID" << endl;
-                    return;
-                }
-                
-                guardarLibros();
-                cout << "Libro actualizado correctamente" << endl;
+        auto it = find_if(libros.begin(), libros.end(), [id](const Libro& l) { return l.id == id; });
+        if (it != libros.end()) {
+            cout << "\nLibro actual: " << it->titulo << " (ISBN: " << it->isbn << ")" << endl;
+            
+            it->titulo = leerCadena("Nuevo titulo: ");
+            cout << "Nuevo ISBN: ";
+            getline(cin, it->isbn);
+            it->anio = leerEntero("Nuevo anio: ");
+            
+            cout << "\nLista de autores disponibles:" << endl;
+            listarAutores();
+            it->id_autor = leerEntero("Nuevo ID autor: ");
+            
+            if (!autorExiste(it->id_autor)) {
+                cout << "Error: No existe autor con ese ID" << endl;
                 return;
             }
+            
+            guardarLibros();
+            cout << "Libro actualizado correctamente" << endl;
+        } else {
+            cout << "No se encontro libro con ID " << id << endl;
         }
-        cout << "No se encontro libro con ese ID" << endl;
+        pausar();
     }
 
-    // Elimina un libro por su ID
     void eliminarLibro() {
-        int id;
-        cout << "\n=== ELIMINAR LIBRO ===" << endl;
-        cout << "ID del libro a eliminar: ";
-        cin >> id;
+        cout << "\n===== ELIMINAR LIBRO =====" << endl;
+        int id = leerEntero("ID del libro a eliminar: ");
         
-        for (auto it = libros.begin(); it != libros.end(); ++it) {
-            if (it->id == id) {
-                // Verificar si el libro esta asociado a algun prestamo activo
-                for (const auto& prestamo : prestamos) {
-                    if (prestamo.id_libro == id && prestamo.activo) {
-                        cout << "Error: El libro esta actualmente prestado" << endl;
-                        return;
-                    }
-                }
+        auto it = find_if(libros.begin(), libros.end(), [id](const Libro& l) { return l.id == id; });
+        if (it != libros.end()) {
+            if (!libroDisponible(id)) {
+                cout << "Error: No se puede eliminar. El libro esta actualmente prestado." << endl;
+            } else if (confirmarAccion("Esta seguro de eliminar este libro")) {
                 libros.erase(it);
                 guardarLibros();
-                cout << "Libro eliminado" << endl;
-                return;
+                cout << "Libro eliminado correctamente" << endl;
+            } else {
+                cout << "Eliminacion cancelada" << endl;
             }
+        } else {
+            cout << "No se encontro libro con ID " << id << endl;
         }
-        cout << "No se encontro libro con ese ID" << endl;
+        pausar();
     }
 
-    // Agrega un nuevo estudiante al sistema
     void agregarEstudiante() {
+        cout << "\n===== AGREGAR ESTUDIANTE =====" << endl;
+        
         Estudiante estudiante;
-        cout << "\n=== AGREGAR ESTUDIANTE ===" << endl;
-        
-        cout << "ID: ";
-        cin >> estudiante.id;
-        
-        if (estudianteExiste(estudiante.id)) {
-            cout << "Error: Ya existe un estudiante con ese ID" << endl;
-            return;
-        }
-        
-        cin.ignore();
-        cout << "Nombre: ";
-        getline(cin, estudiante.nombre);
-        
-        cout << "Grado: ";
-        cin >> estudiante.grado;
+        estudiante.id = generarIdEstudiante();
+        estudiante.nombre = leerCadena("Nombre: ");
+        estudiante.grado = leerEntero("Grado: ");
         
         estudiantes.push_back(estudiante);
         guardarEstudiantes();
-        cout << "Estudiante agregado correctamente" << endl;
+        cout << "Estudiante agregado correctamente (ID: " << estudiante.id << ")" << endl;
+        pausar();
     }
 
-    // Lista todos los estudiantes registrados
     void listarEstudiantes() {
-        cout << "\n=== LISTA DE ESTUDIANTES ===" << endl;
+        cout << "\n===== LISTA DE ESTUDIANTES =====" << endl;
         if (estudiantes.empty()) {
             cout << "No hay estudiantes registrados" << endl;
+            pausar();
             return;
         }
         
-        cout << "Total de estudiantes: " << estudiantes.size() << endl;
+        printf("%-4s %-25s %-6s\n", "ID", "NOMBRE", "GRADO");
+        cout << string(40, '=') << endl;
         
         for (const auto& estudiante : estudiantes) {
-            cout << "ID: " << estudiante.id << " | Nombre: " << estudiante.nombre 
-                 << " | Grado: " << estudiante.grado << endl;
+            printf("%-4d %-25s %-6d\n", estudiante.id, estudiante.nombre.c_str(), estudiante.grado);
         }
+        cout << "\nTotal: " << estudiantes.size() << " estudiantes" << endl;
+        pausar();
     }
 
-    // Busca estudiantes por nombre (busqueda parcial)
     void buscarEstudiantePorNombre() {
-        string nombre;
-        cout << "\n=== BUSCAR ESTUDIANTE POR NOMBRE ===" << endl;
-        cin.ignore();
-        cout << "Nombre a buscar: ";
-        getline(cin, nombre);
+        cout << "\n===== BUSCAR ESTUDIANTE POR NOMBRE =====" << endl;
+        string nombre = leerCadena("Nombre a buscar: ");
         
         bool encontrado = false;
         for (const auto& estudiante : estudiantes) {
-            if (estudiante.nombre.find(nombre) != string::npos) {
+            string nombreLower = estudiante.nombre;
+            transform(nombreLower.begin(), nombreLower.end(), nombreLower.begin(), ::tolower);
+            string busquedaLower = nombre;
+            transform(busquedaLower.begin(), busquedaLower.end(), busquedaLower.begin(), ::tolower);
+            
+            if (nombreLower.find(busquedaLower) != string::npos) {
                 if (!encontrado) {
                     cout << "Estudiantes encontrados:" << endl;
+                    printf("%-4s %-25s %-6s\n", "ID", "NOMBRE", "GRADO");
+                    cout << string(40, '-') << endl;
                     encontrado = true;
                 }
-                cout << "ID: " << estudiante.id << " | Nombre: " << estudiante.nombre 
-                     << " | Grado: " << estudiante.grado << endl;
+                printf("%-4d %-25s %-6d\n", estudiante.id, estudiante.nombre.c_str(), estudiante.grado);
             }
         }
         
         if (!encontrado) {
-            cout << "No hay estudiantes con ese nombre" << endl;
+            cout << "No se encontraron estudiantes con ese nombre" << endl;
         }
+        pausar();
     }
 
-    // Actualiza los datos de un estudiante existente
     void actualizarEstudiante() {
-        int id;
-        cout << "\n=== ACTUALIZAR ESTUDIANTE ===" << endl;
-        cout << "ID del estudiante: ";
-        cin >> id;
+        cout << "\n===== ACTUALIZAR ESTUDIANTE =====" << endl;
+        int id = leerEntero("ID del estudiante: ");
         
-        for (auto& estudiante : estudiantes) {
-            if (estudiante.id == id) {
-                cin.ignore();
-                cout << "Nuevo nombre (anterior: " << estudiante.nombre << "): ";
-                getline(cin, estudiante.nombre);
-                cout << "Nuevo grado (anterior: " << estudiante.grado << "): ";
-                cin >> estudiante.grado;
-                guardarEstudiantes();
-                cout << "Estudiante actualizado correctamente" << endl;
-                return;
-            }
+        auto it = find_if(estudiantes.begin(), estudiantes.end(), [id](const Estudiante& e) { return e.id == id; });
+        if (it != estudiantes.end()) {
+            cout << "\nEstudiante actual: " << it->nombre << " (Grado: " << it->grado << ")" << endl;
+            
+            it->nombre = leerCadena("Nuevo nombre: ");
+            it->grado = leerEntero("Nuevo grado: ");
+            
+            guardarEstudiantes();
+            cout << "Estudiante actualizado correctamente" << endl;
+        } else {
+            cout << "No se encontro estudiante con ID " << id << endl;
         }
-        cout << "No se encontro estudiante con ese ID" << endl;
+        pausar();
     }
 
-    // Elimina un estudiante por su ID
     void eliminarEstudiante() {
-        int id;
-        cout << "\n=== ELIMINAR ESTUDIANTE ===" << endl;
-        cout << "ID del estudiante a eliminar: ";
-        cin >> id;
+        cout << "\n===== ELIMINAR ESTUDIANTE =====" << endl;
+        int id = leerEntero("ID del estudiante a eliminar: ");
         
-        for (auto it = estudiantes.begin(); it != estudiantes.end(); ++it) {
-            if (it->id == id) {
-                // Verificar si el estudiante tiene prestamos activos
-                for (const auto& prestamo : prestamos) {
-                    if (prestamo.id_estudiante == id && prestamo.activo) {
-                        cout << "Error: El estudiante tiene prestamos activos" << endl;
-                        return;
-                    }
-                }
+        auto it = find_if(estudiantes.begin(), estudiantes.end(), [id](const Estudiante& e) { return e.id == id; });
+        if (it != estudiantes.end()) {
+            bool tienePrestamosActivos = any_of(prestamos.begin(), prestamos.end(), 
+                                              [id](const Prestamo& p) { return p.id_estudiante == id && p.activo; });
+            
+            if (tienePrestamosActivos) {
+                cout << "Error: No se puede eliminar. El estudiante tiene prestamos activos." << endl;
+            } else if (confirmarAccion("Esta seguro de eliminar este estudiante")) {
                 estudiantes.erase(it);
                 guardarEstudiantes();
-                cout << "Estudiante eliminado" << endl;
-                return;
+                cout << "Estudiante eliminado correctamente" << endl;
+            } else {
+                cout << "Eliminacion cancelada" << endl;
             }
+        } else {
+            cout << "No se encontro estudiante con ID " << id << endl;
         }
-        cout << "No se encontro estudiante con ese ID" << endl;
+        pausar();
     }
 
-    // Realiza un nuevo prestamo
     void realizarPrestamo() {
+        cout << "\n===== REALIZAR PRESTAMO =====" << endl;
+        
         Prestamo prestamo;
-        cout << "\n=== REALIZAR PRESTAMO ===" << endl;
+        prestamo.id = generarIdPrestamo();
         
-        cout << "ID Prestamo: ";
-        cin >> prestamo.id;
+        cout << "\nLibros disponibles:" << endl;
+        bool hayLibrosDisponibles = false;
+        for (const auto& libro : libros) {
+            if (libroDisponible(libro.id)) {
+                if (!hayLibrosDisponibles) {
+                    printf("%-3s %-25s %-20s\n", "ID", "TITULO", "AUTOR");
+                    cout << string(50, '-') << endl;
+                    hayLibrosDisponibles = true;
+                }
+                
+                string nombreAutor = "No encontrado";
+                auto autorIt = find_if(autores.begin(), autores.end(), 
+                                     [&libro](const Autor& a) { return a.id == libro.id_autor; });
+                if (autorIt != autores.end()) nombreAutor = autorIt->nombre;
+                
+                printf("%-3d %-25s %-20s\n", libro.id, libro.titulo.c_str(), nombreAutor.c_str());
+            }
+        }
         
-        if (prestamoExiste(prestamo.id)) {
-            cout << "Error: Ya existe un prestamo con ese ID" << endl;
+        if (!hayLibrosDisponibles) {
+            cout << "No hay libros disponibles para prestamo" << endl;
+            pausar();
             return;
         }
         
-        cout << "ID Libro: ";
-        cin >> prestamo.id_libro;
+        prestamo.id_libro = leerEntero("\nID del libro: ");
         
         if (!libroExiste(prestamo.id_libro)) {
             cout << "Error: No existe libro con ese ID" << endl;
+            pausar();
             return;
         }
         
         if (!libroDisponible(prestamo.id_libro)) {
             cout << "Error: El libro no esta disponible" << endl;
+            pausar();
             return;
         }
         
-        cout << "ID Estudiante: ";
-        cin >> prestamo.id_estudiante;
+        cout << "\nLista de estudiantes:" << endl;
+        listarEstudiantes();
+        prestamo.id_estudiante = leerEntero("ID del estudiante: ");
         
         if (!estudianteExiste(prestamo.id_estudiante)) {
             cout << "Error: No existe estudiante con ese ID" << endl;
+            pausar();
             return;
         }
         
-        cin.ignore();
-        cout << "Fecha prestamo (YYYY-MM-DD): ";
-        getline(cin, prestamo.fecha_prestamo);
-        if (!validarFecha(prestamo.fecha_prestamo)) {
-            cout << "Error: Formato de fecha invalido (use YYYY-MM-DD)" << endl;
-            return;
-        }
+        string fecha;
+        do {
+            cout << "Fecha de prestamo (YYYY-MM-DD): ";
+            getline(cin, fecha);
+            if (!validarFecha(fecha)) {
+                cout << "Error: Formato de fecha invalido. Use YYYY-MM-DD con una fecha valida." << endl;
+            }
+        } while (!validarFecha(fecha));
+        prestamo.fecha_prestamo = fecha;
         
-        cout << "Fecha devolucion (YYYY-MM-DD): ";
-        getline(cin, prestamo.fecha_devolucion);
-        if (!validarFecha(prestamo.fecha_devolucion)) {
-            cout << "Error: Formato de fecha invalido (use YYYY-MM-DD)" << endl;
-            return;
-        }
+        do {
+            cout << "Fecha de devolucion (YYYY-MM-DD): ";
+            getline(cin, fecha);
+            if (!validarFecha(fecha)) {
+                cout << "Error: Formato de fecha invalido. Use YYYY-MM-DD con una fecha valida." << endl;
+            }
+        } while (!validarFecha(fecha));
+        prestamo.fecha_devolucion = fecha;
         
         prestamo.activo = true;
         prestamos.push_back(prestamo);
         guardarPrestamos();
-        cout << "Prestamo realizado correctamente" << endl;
+        cout << "Prestamo realizado correctamente (ID Prestamo: " << prestamo.id << ")" << endl;
+        pausar();
     }
 
-    // Devuelve un libro prestado
     void devolverLibro() {
-        int id_prestamo;
-        cout << "\n=== DEVOLVER LIBRO ===" << endl;
-        cout << "ID del prestamo: ";
-        cin >> id_prestamo;
+        cout << "\n===== DEVOLVER LIBRO =====" << endl;
+        int id_prestamo = leerEntero("ID del prestamo: ");
         
-        for (auto& prestamo : prestamos) {
-            if (prestamo.id == id_prestamo && prestamo.activo) {
-                prestamo.activo = false;
-                guardarPrestamos();
-                cout << "Libro devuelto correctamente" << endl;
-                return;
-            }
+        auto it = find_if(prestamos.begin(), prestamos.end(), 
+                         [id_prestamo](const Prestamo& p) { return p.id == id_prestamo && p.activo; });
+        if (it != prestamos.end()) {
+            string tituloLibro = "No encontrado";
+            auto libroIt = find_if(libros.begin(), libros.end(), 
+                                 [it](const Libro& l) { return l.id == it->id_libro; });
+            if (libroIt != libros.end()) tituloLibro = libroIt->titulo;
+            
+            cout << "Devolviendo libro: " << tituloLibro << endl;
+            it->activo = false;
+            guardarPrestamos();
+            cout << "Libro devuelto correctamente" << endl;
+        } else {
+            cout << "Error: No hay prestamo activo con ese ID" << endl;
         }
-        cout << "Error: No hay prestamo activo con ese ID" << endl;
+        pausar();
     }
 
-    // Lista todos los prestamos registrados
     void listarPrestamos() {
-        cout << "\n=== LISTA DE PRESTAMOS ===" << endl;
+        cout << "\n===== LISTA DE PRESTAMOS =====" << endl;
         if (prestamos.empty()) {
             cout << "No hay prestamos registrados" << endl;
+            pausar();
             return;
         }
         
+        printf("%-5s %-25s %-20s %-15s %-15s %-6s\n", 
+               "ID", "LIBRO", "ESTUDIANTE", "PRESTAMO", "DEVOLUCION", "ACTIVO");
+        cout << string(100, '=') << endl;
+        
         for (const auto& prestamo : prestamos) {
             string tituloLibro = "No encontrado";
-            for (const auto& libro : libros) {
-                if (libro.id == prestamo.id_libro) {
-                    tituloLibro = libro.titulo;
-                    break;
-                }
-            }
+            auto libroIt = find_if(libros.begin(), libros.end(), 
+                                 [&prestamo](const Libro& l) { return l.id == prestamo.id_libro; });
+            if (libroIt != libros.end()) tituloLibro = libroIt->titulo;
             
             string nombreEstudiante = "No encontrado";
-            for (const auto& estudiante : estudiantes) {
-                if (estudiante.id == prestamo.id_estudiante) {
-                    nombreEstudiante = estudiante.nombre;
-                    break;
-                }
-            }
+            auto estudianteIt = find_if(estudiantes.begin(), estudiantes.end(), 
+                                      [&prestamo](const Estudiante& e) { return e.id == prestamo.id_estudiante; });
+            if (estudianteIt != estudiantes.end()) nombreEstudiante = estudianteIt->nombre;
             
-            cout << "ID: " << prestamo.id << " | Libro: " << tituloLibro 
-                 << " | Estudiante: " << nombreEstudiante 
-                 << " | Fecha prestamo: " << prestamo.fecha_prestamo 
-                 << " | Fecha devolucion: " << prestamo.fecha_devolucion 
-                 << " | Activo: " << (prestamo.activo ? "Si" : "No") << endl;
+            printf("%-5d %-25s %-20s %-15s %-15s %-6s\n", 
+                   prestamo.id, tituloLibro.c_str(), nombreEstudiante.c_str(),
+                   prestamo.fecha_prestamo.c_str(), prestamo.fecha_devolucion.c_str(),
+                   prestamo.activo ? "Si" : "No");
         }
+        pausar();
     }
 
-    // Busca prestamos por ID de estudiante
     void buscarPrestamosPorEstudiante() {
-        int id_estudiante;
-        cout << "\n=== BUSCAR PRESTAMOS POR ESTUDIANTE ===" << endl;
-        cout << "ID del estudiante: ";
-        cin >> id_estudiante;
+        cout << "\n===== BUSCAR PRESTAMOS POR ESTUDIANTE =====" << endl;
+        int id_estudiante = leerEntero("ID del estudiante: ");
         
         if (!estudianteExiste(id_estudiante)) {
             cout << "Error: No existe estudiante con ese ID" << endl;
+            pausar();
             return;
         }
         
@@ -890,73 +915,79 @@ public:
             if (prestamo.id_estudiante == id_estudiante) {
                 if (!encontrado) {
                     cout << "Prestamos del estudiante:" << endl;
+                    printf("%-5s %-25s %-15s %-15s %-6s\n", 
+                           "ID", "LIBRO", "PRESTAMO", "DEVOLUCION", "ACTIVO");
+                    cout << string(70, '-') << endl;
                     encontrado = true;
                 }
                 
                 string tituloLibro = "No encontrado";
-                for (const auto& libro : libros) {
-                    if (libro.id == prestamo.id_libro) {
-                        tituloLibro = libro.titulo;
-                        break;
-                    }
-                }
+                auto libroIt = find_if(libros.begin(), libros.end(), 
+                                     [&prestamo](const Libro& l) { return l.id == prestamo.id_libro; });
+                if (libroIt != libros.end()) tituloLibro = libroIt->titulo;
                 
-                cout << "ID Prestamo: " << prestamo.id << " | Libro: " << tituloLibro 
-                     << " | Fecha prestamo: " << prestamo.fecha_prestamo 
-                     << " | Fecha devolucion: " << prestamo.fecha_devolucion 
-                     << " | Activo: " << (prestamo.activo ? "Si" : "No") << endl;
+                printf("%-5d %-25s %-15s %-15s %-6s\n", 
+                       prestamo.id, tituloLibro.c_str(), prestamo.fecha_prestamo.c_str(),
+                       prestamo.fecha_devolucion.c_str(), prestamo.activo ? "Si" : "No");
             }
         }
         
         if (!encontrado) {
             cout << "No hay prestamos para este estudiante" << endl;
         }
+        pausar();
     }
 
-    // Elimina un prestamo por su ID
     void eliminarPrestamo() {
-        int id;
-        cout << "\n=== ELIMINAR PRESTAMO ===" << endl;
-        cout << "ID del prestamo a eliminar: ";
-        cin >> id;
+        cout << "\n===== ELIMINAR PRESTAMO =====" << endl;
+        int id = leerEntero("ID del prestamo a eliminar: ");
         
-        for (auto it = prestamos.begin(); it != prestamos.end(); ++it) {
-            if (it->id == id) {
+        auto it = find_if(prestamos.begin(), prestamos.end(), [id](const Prestamo& p) { return p.id == id; });
+        if (it != prestamos.end()) {
+            if (it->activo) {
+                cout << "Error: No se puede eliminar un prestamo activo. Debe devolver el libro primero." << endl;
+            } else if (confirmarAccion("Esta seguro de eliminar este prestamo")) {
                 prestamos.erase(it);
                 guardarPrestamos();
-                cout << "Prestamo eliminado" << endl;
-                return;
+                cout << "Prestamo eliminado correctamente" << endl;
+            } else {
+                cout << "Eliminacion cancelada" << endl;
             }
+        } else {
+            cout << "No se encontro prestamo con ese ID" << endl;
         }
-        cout << "No se encontro prestamo con ese ID" << endl;
+        pausar();
     }
 
-    // Muestra el menu principal del sistema
     void mostrarMenu() {
         int opcion;
         
         while (true) {
-            cout << "\n=== SISTEMA DE BIBLIOTECA ===" << endl;
+            cout << "\n";
+            cout << "==========================================" << endl;
+            cout << "          SISTEMA DE BIBLIOTECA          " << endl;
+            cout << "==========================================" << endl;
             cout << "1. Gestion de Autores" << endl;
             cout << "2. Gestion de Libros" << endl;
             cout << "3. Gestion de Estudiantes" << endl;
             cout << "4. Gestion de Prestamos" << endl;
-            cout << "0. Salir" << endl;
-            cout << "Seleccione una opcion: ";
-            cin >> opcion;
+            cout << "0. Salir del Sistema" << endl;
+            cout << "==========================================" << endl;
+            
+            opcion = leerEntero("Seleccione una opcion: ");
             
             switch (opcion) {
                 case 1: {
                     int opcionAutor;
-                    cout << "\n=== GESTION DE AUTORES ===" << endl;
+                    cout << "\n===== GESTION DE AUTORES =====" << endl;
                     cout << "1. Agregar Autor" << endl;
                     cout << "2. Listar Autores" << endl;
-                    cout << "3. Buscar Autor por ID" << endl;
+                    cout << "3. Buscar por ID" << endl;
                     cout << "4. Actualizar Autor" << endl;
                     cout << "5. Eliminar Autor" << endl;
-                    cout << "0. Volver" << endl;
-                    cout << "Seleccione: ";
-                    cin >> opcionAutor;
+                    cout << "0. Volver al Menu Principal" << endl;
+                    
+                    opcionAutor = leerEntero("Seleccione: ");
                     
                     switch (opcionAutor) {
                         case 1: agregarAutor(); break;
@@ -965,21 +996,21 @@ public:
                         case 4: actualizarAutor(); break;
                         case 5: eliminarAutor(); break;
                         case 0: break;
-                        default: cout << "Opcion invalida" << endl;
+                        default: cout << "Opcion invalida" << endl; pausar();
                     }
                     break;
                 }
                 case 2: {
                     int opcionLibro;
-                    cout << "\n=== GESTION DE LIBROS ===" << endl;
+                    cout << "\n===== GESTION DE LIBROS =====" << endl;
                     cout << "1. Agregar Libro" << endl;
                     cout << "2. Listar Libros" << endl;
-                    cout << "3. Buscar Libro por Titulo" << endl;
+                    cout << "3. Buscar por Titulo" << endl;
                     cout << "4. Actualizar Libro" << endl;
                     cout << "5. Eliminar Libro" << endl;
-                    cout << "0. Volver" << endl;
-                    cout << "Seleccione: ";
-                    cin >> opcionLibro;
+                    cout << "0. Volver al Menu Principal" << endl;
+                    
+                    opcionLibro = leerEntero("Seleccione: ");
                     
                     switch (opcionLibro) {
                         case 1: agregarLibro(); break;
@@ -988,21 +1019,21 @@ public:
                         case 4: actualizarLibro(); break;
                         case 5: eliminarLibro(); break;
                         case 0: break;
-                        default: cout << "Opcion invalida" << endl;
+                        default: cout << "Opcion invalida" << endl; pausar();
                     }
                     break;
                 }
                 case 3: {
                     int opcionEstudiante;
-                    cout << "\n=== GESTION DE ESTUDIANTES ===" << endl;
+                    cout << "\n===== GESTION DE ESTUDIANTES =====" << endl;
                     cout << "1. Agregar Estudiante" << endl;
                     cout << "2. Listar Estudiantes" << endl;
-                    cout << "3. Buscar Estudiante por Nombre" << endl;
+                    cout << "3. Buscar por Nombre" << endl;
                     cout << "4. Actualizar Estudiante" << endl;
                     cout << "5. Eliminar Estudiante" << endl;
-                    cout << "0. Volver" << endl;
-                    cout << "Seleccione: ";
-                    cin >> opcionEstudiante;
+                    cout << "0. Volver al Menu Principal" << endl;
+                    
+                    opcionEstudiante = leerEntero("Seleccione: ");
                     
                     switch (opcionEstudiante) {
                         case 1: agregarEstudiante(); break;
@@ -1011,21 +1042,21 @@ public:
                         case 4: actualizarEstudiante(); break;
                         case 5: eliminarEstudiante(); break;
                         case 0: break;
-                        default: cout << "Opcion invalida" << endl;
+                        default: cout << "Opcion invalida" << endl; pausar();
                     }
                     break;
                 }
                 case 4: {
                     int opcionPrestamo;
-                    cout << "\n=== GESTION DE PRESTAMOS ===" << endl;
+                    cout << "\n===== GESTION DE PRESTAMOS =====" << endl;
                     cout << "1. Realizar Prestamo" << endl;
                     cout << "2. Devolver Libro" << endl;
-                    cout << "3. Listar Todos los Prestamos" << endl;
-                    cout << "4. Buscar Prestamos por Estudiante" << endl;
+                    cout << "3. Listar Prestamos" << endl;
+                    cout << "4. Buscar por Estudiante" << endl;
                     cout << "5. Eliminar Prestamo" << endl;
-                    cout << "0. Volver" << endl;
-                    cout << "Seleccione: ";
-                    cin >> opcionPrestamo;
+                    cout << "0. Volver al Menu Principal" << endl;
+                    
+                    opcionPrestamo = leerEntero("Seleccione: ");
                     
                     switch (opcionPrestamo) {
                         case 1: realizarPrestamo(); break;
@@ -1034,21 +1065,21 @@ public:
                         case 4: buscarPrestamosPorEstudiante(); break;
                         case 5: eliminarPrestamo(); break;
                         case 0: break;
-                        default: cout << "Opcion invalida" << endl;
+                        default: cout << "Opcion invalida" << endl; pausar();
                     }
                     break;
                 }
                 case 0:
-                    cout << "Saliendo del sistema... ¡Hasta luego!" << endl;
+                    cout << "\nGracias por usar el Sistema de Biblioteca. ¡Hasta pronto!" << endl;
                     return;
                 default:
-                    cout << "Opcion invalida, intenta de nuevo" << endl;
+                    cout << "Opcion invalida, por favor intente nuevamente" << endl;
+                    pausar();
             }
         }
     }
 };
 
-// Funcion principal del programa
 int main() {
     BibliotecaDB biblioteca;
     biblioteca.mostrarMenu();
