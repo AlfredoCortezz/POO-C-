@@ -45,20 +45,21 @@ private:
     vector<Estudiante> estudiantes;
     vector<Prestamo> prestamos;
 
-    // metodos auxiliares
+    // Métodos auxiliares para validaciones
     bool autorExiste(int id);
     bool libroExiste(int id);
     bool estudianteExiste(int id);
     bool prestamoExiste(int id);
     bool libroDisponible(int id_libro);
+    bool validarFecha(const string& fecha);
     
-    // carga de datos
+    // Métodos para cargar datos desde archivos
     void cargarAutores();
     void cargarLibros();
     void cargarEstudiantes();
     void cargarPrestamos();
     
-    // guardado de datos
+    // Métodos para guardar datos en archivos
     void guardarAutores();
     void guardarLibros();
     void guardarEstudiantes();
@@ -71,18 +72,21 @@ public:
     void agregarAutor();
     void listarAutores();
     void buscarAutorPorId();
+    void actualizarAutor();
     void eliminarAutor();
     
     // CRUD Libros
     void agregarLibro();
     void listarLibros();
     void buscarLibroPorTitulo();
+    void actualizarLibro();
     void eliminarLibro();
     
     // CRUD Estudiantes
     void agregarEstudiante();
     void listarEstudiantes();
     void buscarEstudiantePorNombre();
+    void actualizarEstudiante();
     void eliminarEstudiante();
     
     // CRUD Prestamos
@@ -90,8 +94,9 @@ public:
     void devolverLibro();
     void listarPrestamos();
     void buscarPrestamosPorEstudiante();
+    void eliminarPrestamo();
     
-    // Menu principal
+    // Menú principal
     void mostrarMenu();
 };
 
