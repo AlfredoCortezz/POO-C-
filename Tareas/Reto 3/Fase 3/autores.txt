@@ -1,0 +1,8 @@
+1,Gabriel Garcia Marquez,Colombiana
+2,Isabel Allende,Chilena
+3,Mario Vargas Llosa,Peruana
+4,Julio Cortazar,Argentina
+5,Jorge Luis Borges,Argentina
+6,Pablo Neruda,Chilena
+7,Octavio Paz,Mexicana
+8,Carlos Fuentes,Mexicana

@@ -1,0 +1,8 @@
+101,Maria Gonzalez,10
+102,Carlos Rodriguez,11
+103,Ana Martinez,9
+104,Luis Hernandez,12
+105,Sofia Lopez,10
+106,Diego Perez,11
+107,Elena Ramirez,9
+108,Javier Torres,12
